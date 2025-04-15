@@ -35,6 +35,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "04_MyAsynchronousRealisatio
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "05_MyAsyncAsynchornousRealisation2", "Other\05_MyAsyncAsynchornousRealisation2\05_MyAsyncAsynchornousRealisation2.csproj", "{6E317BCA-2515-49B5-A91A-ED95294FBE71}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "06_MyFullAsyncRealisation", "Other\06_MyFullAsyncRealisation\06_MyFullAsyncRealisation.csproj", "{85C94469-E1FD-4700-8285-6A505B3F4F3A}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -213,6 +215,18 @@ Global
 		{6E317BCA-2515-49B5-A91A-ED95294FBE71}.Release|x64.Build.0 = Release|Any CPU
 		{6E317BCA-2515-49B5-A91A-ED95294FBE71}.Release|x86.ActiveCfg = Release|Any CPU
 		{6E317BCA-2515-49B5-A91A-ED95294FBE71}.Release|x86.Build.0 = Release|Any CPU
+		{85C94469-E1FD-4700-8285-6A505B3F4F3A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{85C94469-E1FD-4700-8285-6A505B3F4F3A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{85C94469-E1FD-4700-8285-6A505B3F4F3A}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{85C94469-E1FD-4700-8285-6A505B3F4F3A}.Debug|x64.Build.0 = Debug|Any CPU
+		{85C94469-E1FD-4700-8285-6A505B3F4F3A}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{85C94469-E1FD-4700-8285-6A505B3F4F3A}.Debug|x86.Build.0 = Debug|Any CPU
+		{85C94469-E1FD-4700-8285-6A505B3F4F3A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{85C94469-E1FD-4700-8285-6A505B3F4F3A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{85C94469-E1FD-4700-8285-6A505B3F4F3A}.Release|x64.ActiveCfg = Release|Any CPU
+		{85C94469-E1FD-4700-8285-6A505B3F4F3A}.Release|x64.Build.0 = Release|Any CPU
+		{85C94469-E1FD-4700-8285-6A505B3F4F3A}.Release|x86.ActiveCfg = Release|Any CPU
+		{85C94469-E1FD-4700-8285-6A505B3F4F3A}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -232,5 +246,6 @@ Global
 		{62ED91FC-72F2-4667-9ABB-21791940664B} = {A36FAAB1-3B70-FACF-6B1E-E7138A3CFC44}
 		{43AE5F40-14F9-492B-908C-D11A11FB3A9B} = {A36FAAB1-3B70-FACF-6B1E-E7138A3CFC44}
 		{6E317BCA-2515-49B5-A91A-ED95294FBE71} = {A36FAAB1-3B70-FACF-6B1E-E7138A3CFC44}
+		{85C94469-E1FD-4700-8285-6A505B3F4F3A} = {A36FAAB1-3B70-FACF-6B1E-E7138A3CFC44}
 	EndGlobalSection
 EndGlobal
