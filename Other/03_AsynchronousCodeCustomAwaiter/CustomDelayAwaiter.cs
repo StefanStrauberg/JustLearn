@@ -7,7 +7,7 @@ public class CustomDelayAwaiter(int delayMilliseconds)
 {
   private readonly int _delayMilliseconds = delayMilliseconds;
   private Action _continuation = default!;
-  private Timer _timer = default!;
+  private Timer? _timer = default!;
   // In our case it's always false
   // to ensure asynchronous behavior
   public bool IsCompleted => false;
@@ -17,12 +17,19 @@ public class CustomDelayAwaiter(int delayMilliseconds)
   {
     _continuation = continuation;
 
-    _timer = new Timer( state => 
-    {
-      _timer.Dispose();
-      // Call continuation
-      _continuation?.Invoke();
-    }, null, _delayMilliseconds, Timeout.Infinite);
+    // Check that the timer isn't created again
+    _timer?.Dispose();
+
+    _timer = new Timer(new TimerCallback(TimerElapsed),
+                       null,
+                       _delayMilliseconds,
+                       Timeout.Infinite);
+  }
+
+  void TimerElapsed(object? state)
+  {
+    _timer?.Dispose();
+    _continuation?.Invoke();
   }
 
   public void GetResult() {}

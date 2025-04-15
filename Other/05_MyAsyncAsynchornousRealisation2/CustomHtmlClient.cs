@@ -1,19 +1,24 @@
-using System.Runtime.CompilerServices;
-
 namespace _05_MyAsyncAsynchornousRealisation2;
 
+// Главный класс-клиент, с которого начинается асинхронная операция
 public static class CustomHttpClient
 {
-  public static Task<string> GetPageAsync(string host, string path = "/")
+  // Статический метод, который начинает асинхронное получение веб-страницы.
+  // Принимает host и (необязательно) path, возвращает Task<string> с полученным HTML.
+  public static MyTask<string> GetPageAsync(string url)
   {
+    // Создаём экземпляр state machine, передавая необходимые параметры
     var stateMachine = new CustomHttpStateMachine
     {
-      Builder = AsyncTaskMethodBuilder<string>.Create(),
+      // Инициализируем билдер асинхронного метода (создаётся через стандартный метод Create)
+      Builder = MyAsyncTaskMethodBuilder.Create(),
       State = -1,
-      Host = host,
-      Path = path
+      Url = url,
     };
-    stateMachine.Builder.Start(ref stateMachine);
+    // Запускаем state machine, вызовом Builder.Start(ref stateMachine)
+    MyAsyncTaskMethodBuilder.Start(ref stateMachine);
+    // Возвращаем задачу, которая завершится, когда state machine 
+    // вызовет SetResult или SetException
     return stateMachine.Builder.Task;
   }
 }
