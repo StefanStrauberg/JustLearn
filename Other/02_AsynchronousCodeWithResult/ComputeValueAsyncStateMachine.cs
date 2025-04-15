@@ -2,12 +2,18 @@ using System.Runtime.CompilerServices;
 
 namespace _02_AsynchronousCodeWithResult;
 
-internal struct ComputeValueAsyncStateMachine : IAsyncStateMachine
+internal struct ComputeValueAsyncStateMachine
+  : IAsyncStateMachine
 {
-  public int state = -1;
-  int localResult = default;
+  // field of state: -1 default value
+  // 0 after first await 
+  // 1 - after second await
+  public int state;
+  // Task builder
   public AsyncTaskMethodBuilder<int> builder;
+  // Awaiter for the first delay (Task.Delay)
   TaskAwaiter awaiter1;
+  // Awaiter for the second delay (ReturnValueAsync)
   TaskAwaiter<int> awaiter2;
 
   public void MoveNext()
@@ -17,10 +23,9 @@ internal struct ComputeValueAsyncStateMachine : IAsyncStateMachine
     {
       if (state == -1)
       {
-        Console.WriteLine("ComputeValueAsync: Start, wait delay 1 sec");
-        // Return Task.Delay and get awaiter
-        Task delayTask = Task.Delay(1000);
-        awaiter1 = delayTask.GetAwaiter();
+        // Calling Task.Delay and getting awaiter
+        awaiter1 = Task.Delay(1000)
+                       .GetAwaiter();
 
         // If the delay hasn't been completed yet, regester the continuation and exit
         if (!awaiter1.IsCompleted)
@@ -34,11 +39,9 @@ internal struct ComputeValueAsyncStateMachine : IAsyncStateMachine
       if (state == 0)
       {
         awaiter1.GetResult();
-        Console.WriteLine("ComputeValueAsync: Delay has been completed, calling ReturnValueAsync");
-        
-        // Calling async method ReturnValueAsync and get its waiting
-        Task<int> valueTask = AsyncSimulatorWithResult.ReturnValueAsync();
-        awaiter2 = valueTask.GetAwaiter();
+
+        awaiter2 = Task.FromResult(123)
+                       .GetAwaiter();
 
         // If the task is not ready,
         // save the state and register the continuation
@@ -53,19 +56,18 @@ internal struct ComputeValueAsyncStateMachine : IAsyncStateMachine
       if (state == 1)
       {
         localResult = awaiter2.GetResult();
-        Console.WriteLine($"ComputeValueAsync: received the {localResult} value from ReturnValueAsync.");
       }
-      // Getting the result from ReturnValueAsync. 
-      // If there is an error, it will be forward here
-      localResult += 20;
-      Console.WriteLine($"ComputeValueASync: the final result is {localResult}");
+
+      // Finish async method, set result
+      builder.SetResult(localResult);
     }
     catch (Exception ex)
     {
+      // In a case of an exception we pass it to the builder
       builder.SetException(ex);
     }
   }
-
+  // This method is required by the IAsyncStateMachine
   public void SetStateMachine(IAsyncStateMachine stateMachine)
   {
     builder.SetStateMachine(stateMachine);

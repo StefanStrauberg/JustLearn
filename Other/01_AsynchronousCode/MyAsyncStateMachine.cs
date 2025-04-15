@@ -2,10 +2,12 @@ using System.Runtime.CompilerServices;
 
 namespace _01_AsynchronousCode;
 
-internal struct MyAsyncStateMachine : IAsyncStateMachine
+internal struct MyAsyncStateMachine() 
+  : IAsyncStateMachine
 {
-  // -1 method not started 
-  // 0 after first await
+  // field of state: -1 default balue
+  // 0 after first await 
+  // 1 - after second await
   public int state;
   // Task builder: manage creating and finishing tasks
   public AsyncTaskMethodBuilder builder;

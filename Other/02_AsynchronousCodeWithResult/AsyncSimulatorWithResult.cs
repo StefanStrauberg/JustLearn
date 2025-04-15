@@ -1,21 +1,18 @@
 using System.Runtime.CompilerServices;
-using Microsoft.VisualBasic;
 
 namespace _02_AsynchronousCodeWithResult;
 
-public static class AsyncSimulatorWithResult
+public struct AsyncSimulatorWithResult
 {
   public static Task<int> ComputeValueAsync()
   {
-    var stateMachine = new ComputeValueAsyncStateMachine();
-    stateMachine.builder = AsyncTaskMethodBuilder<int>.Create();
+    var stateMachine = new ComputeValueAsyncStateMachine
+    {
+      builder = AsyncTaskMethodBuilder<int>.Create(),
+      state = -1
+    };
+    stateMachine.builder.Start(ref stateMachine);
+    return stateMachine.builder.Task;
   }
 
-  public static Task<int> ReturnValueAsync()
-  {
-    return Task.Run(async () => {
-      await Task.Delay(500);
-      return 10;
-    });
-  }
 }
