@@ -47,9 +47,10 @@ internal class HttpGetAwaitable(string host,
         int bytesRead = socket.EndReceive(iar);
         if (bytesRead > 0)
         {
-          sb.Append(Encoding.UTF8.GetString(buffer,
-                                            0,
-                                            bytesRead));
+          sb.Append(Encoding.UTF8
+                            .GetString(buffer,
+                                       0,
+                                       bytesRead));
           socket.BeginReceive(buffer,
                               0,
                               buffer.Length,
