@@ -1,5 +1,6 @@
 namespace _05_MyAsyncAsynchornousRealisation2;
 
+// Собственная реализация TaskCompletionSource
 public class MyTaskCompletionSource<T>
 {
   private readonly MyTask<T> _task = new();

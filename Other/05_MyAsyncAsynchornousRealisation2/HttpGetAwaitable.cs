@@ -1,49 +1,24 @@
-using System.Net.Security;
 using System.Net.Sockets;
 using System.Runtime.CompilerServices;
-using System.Security.Cryptography.X509Certificates;
 using System.Text;
 
 
-// Реализация awaiter-а, который получает HTTP-ответ через сокеты.
-// Реализует INotifyCompletion, что позволяет await-оператору работать с ним.
+// Реализация awaitable для выполнения HTTP/HTTPS запроса с использованием сокетов
 internal class HttpGetAwaitable : INotifyCompletion
 {
-  private readonly string _url;
-  private readonly string _host;
-  private readonly string _path;
-  // Здесь будет храниться полученный HTML
-  private string _result = string.Empty;
-  // Флаг завершения асинхронной операции
-  private bool _isCompleted = false;
-  // Сохранённый continuation, который вызовется 
-  // при завершении асинхронной операции
-  private Action? _continuation;
-  private bool _wasInvoked = false;
+  private readonly string _host; // Парсится из _url (например, "2ip.ru")
+  private readonly string _path; // Парсится из _url (например, "/" или "/some/page")
+  private string _result = string.Empty; // Здесь будет храниться полученный HTML
+  private bool _isCompleted = false; // Флаг завершения асинхронной операции
+  private Action? _continuation; // Сохраненный callback (continuation) для state machine
+  private bool _wasInvoked = false; // Защита от повторного вызова continuation
 
+  // Конструктор принимает URL, затем парсит его на host и path
   public HttpGetAwaitable(string url)
-  {
-    _url = url;
-    
-    // Парсим URL вручную (https://host/path → host, /path)
-    if (_url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+  {    
+    if (url.StartsWith("http://", StringComparison.OrdinalIgnoreCase))
     {
-      var noHttps = _url["https://".Length..];
-      var slashIndex = noHttps.IndexOf('/');
-      if (slashIndex > -1)
-      {
-        _host = noHttps[..slashIndex];
-        _path = noHttps[slashIndex..];
-      }
-      else
-      {
-        _host = noHttps;
-        _path = "/";
-      }
-    }
-    else if (_url.StartsWith("http://", StringComparison.OrdinalIgnoreCase))
-    {
-        var noHttp = _url["http://".Length..];
+        var noHttp = url["http://".Length..];
         int slashIndex = noHttp.IndexOf('/');
         if (slashIndex > -1)
         {
@@ -58,207 +33,149 @@ internal class HttpGetAwaitable : INotifyCompletion
     }
     else
     {
-        _host = _url;
+        _host = url;
         _path = "/";
     }
   }
 
-  // Свойство IsCompleted сообщает, завершилась ли асинхронная операция.
+  // Свойство IsCompleted: возвращает флаг завершения асинхронной операции
   public bool IsCompleted => _isCompleted;
 
-  // Метод GetAwaiter возвращает самого себя, 
-  // что упрощает реализацию awaitable.
+  // Метод GetAwaiter возвращает самого себя — упрощает использование awaitable
   public HttpGetAwaitable GetAwaiter()  => this;
 
-  // Возвращает результат после завершения операции
+  // Метод GetResult возвращает результат (HTML ответа)
   public string GetResult() => _result;
 
-  // Метод вызывается компилятором, чтобы "подписаться" на завершение 
-  // (в continuation будет MoveNext из state machine)
+  // Метод OnCompleted вызывается компилятором, чтобы зарегистрировать continuation.
+  // Здесь мы запускаем асинхронную операцию по получению HTTP-ответа.
   public void OnCompleted(Action continuation)
   {
+    Console.ForegroundColor = ConsoleColor.Red;
+    Console.WriteLine($"\t\t\tCurrent thread: {Environment.CurrentManagedThreadId}");
+    Console.ResetColor();
+    Console.WriteLine("\t\t\tRegister the continuation");
     _continuation = continuation;
-
-    bool useSsl = _url.StartsWith("https://",
-                                  StringComparison.OrdinalIgnoreCase);
     
-    // Создаем TCP-сокет 
+    Console.WriteLine("\t\t\tCreate a TCP-socket");
+    // Создаем TCP-сокет для установления подключения
     var socket = new Socket(AddressFamily.InterNetwork,
                             SocketType.Stream,
                             ProtocolType.Tcp);
-    int port = useSsl ? 443 : 80;
 
-    // Начинаем подключение к хосту
-    socket.BeginConnect(_host, port, ar => 
+    // Начинаем асинхронное подключение к серверу
+    socket.BeginConnect(_host, 80, ar => 
     {
+      Console.ForegroundColor = ConsoleColor.Red;
+      Console.WriteLine($"\t\t\tCurrent thread: {Environment.CurrentManagedThreadId}");
+      Console.ResetColor();
+      Console.WriteLine("\t\t\tBegin connection to the server");
       try
       {
+        Console.ForegroundColor = ConsoleColor.Red;
+        Console.WriteLine($"\t\t\tCurrent thread: {Environment.CurrentManagedThreadId}");
+        Console.ResetColor();
+        Console.WriteLine("\t\t\tEnd connection to the server");
         // Завершаем подключение
         socket.EndConnect(ar);
 
-        if (useSsl)
-        {
-          // Оборачиваем сокет в безопасный SSL-поток
-          var networkStream = new NetworkStream(socket, ownsSocket: true);
-          var sslStream = new SslStream(networkStream,
-                                        false,
-                                        ValidateServerCertificate!);
-          // TLS handshake
-          sslStream.AuthenticateAsClient(_host);
-          
-          // Обрабатываем HTTPS-запрос через SSL
-          ProcessRequest(sslStream);
-        }
-        else
-        {
-          // Обрабатываем HTTP-запрос через обычный сокет
-          ProcessRequest(null);
-        }
+        // работаем напрямую через сокет
+        ProcessRequest();
       }
       catch (Exception ex)
       {
-        // Обработка ошибок подключения
+        // В случае ошибки подключения сохраняем сообщение и завершаем операцию
         _result = $"Connection error: {ex.Message}";
         _isCompleted = true;
         _continuation?.Invoke();
       }
     }, null);
 
-    // Унифицированный метод отправки запроса и обработки ответа 
-    // (через сокет или sslStream)
-    void ProcessRequest(Stream? secureStream)
+    // Локальный метод, который отправляет HTTP-запрос и обрабатывает ответ.
+    // Если secureStream не null, значит используется HTTPS (SSL), иначе HTTP.
+    void ProcessRequest()
     {
-      // Формируем HTTP-запрос с нужными заголовками
+      Console.ForegroundColor = ConsoleColor.Red;
+      Console.WriteLine($"\t\t\tCurrent thread: {Environment.CurrentManagedThreadId}");
+      Console.ResetColor();
+      Console.WriteLine("\t\t\tCreate HTTP-request with predefined headers.");
+      // Формируем HTTP-запрос с нужными заголовками.
       var requestBytes = Encoding.ASCII.GetBytes($"GET {_path} HTTP/1.1\r\n" +
                                                  $"Host: {_host}\r\n" +
                                                  "User-Agent: curl/7.64.1\r\n" +
                                                  "Connection: Close\r\n\r\n");
-      if (secureStream is not null)
+      
+      Console.WriteLine("\t\t\tSend request via socket");
+      // Oтправляем запрос через сокет напрямую
+      socket.Send(requestBytes);
+      var buffer = new byte[8192];
+      var sb = new StringBuilder();
+
+      Console.ForegroundColor = ConsoleColor.Red;
+      Console.WriteLine($"\t\t\tCurrent thread: {Environment.CurrentManagedThreadId}");
+      Console.ResetColor();
+      Console.WriteLine("\t\t\tBegin receive data via socket");
+      // Начинаем асинхронное чтение через сокет
+      socket.BeginReceive(buffer,
+                          0,
+                          buffer.Length,
+                          SocketFlags.None,
+                          ReceiveCallback,
+                          null);
+
+      void ReceiveCallback(IAsyncResult ar)
       {
-        // HTTPS-запрос
-        secureStream.Write(requestBytes,
-                           0,
-                           requestBytes.Length);
-        var buffer = new byte[8192];
-        var sb = new StringBuilder();
-
-        secureStream.BeginRead(buffer,
-                               0,
-                               buffer.Length,
-                               ReadCallBack,
-                               secureStream);
-
-        void ReadCallBack(IAsyncResult ar)
+        try
         {
-          try
+          int bytesRead = socket.EndReceive(ar);
+          
+          if (bytesRead > 0)
           {
-            var stream = (SslStream)ar.AsyncState!;
-            int bytesRead = stream.EndRead(ar);
-            
-            if (bytesRead > 0)
-            {
-                sb.Append(Encoding.UTF8
-                                  .GetString(buffer,
-                                             0,
-                                             bytesRead));
-                stream.BeginRead(buffer,
-                                 0,
-                                 buffer.Length,
-                                 ReadCallBack,
-                                 stream);
-            }
-            else
-            {
-                stream.Close();
-                _result = sb.ToString();
-                _isCompleted = true;
-                if (!_wasInvoked)
-                {
-                    _wasInvoked = true;
-                    // Возобновляем работу state machine
-                    _continuation?.Invoke();
-                }
-            }
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine($"\t\t\tCurrent thread: {Environment.CurrentManagedThreadId}");
+            Console.ResetColor();
+            Console.WriteLine("\t\t\tRead and save received data");
+            // Накапливаем данные, используя только полученное количество байт
+            sb.Append(Encoding.UTF8
+                              .GetString(buffer,
+                                         0,
+                                         bytesRead));
+            socket.BeginReceive(buffer,
+                                0,
+                                buffer.Length,
+                                SocketFlags.None,
+                                ReceiveCallback,
+                                null);
           }
-          catch (Exception ex)
+          else
           {
-            _result = $"Read error: {ex.Message}";
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine($"\t\t\tCurrent thread: {Environment.CurrentManagedThreadId}");
+            Console.ResetColor();
+            Console.WriteLine("\t\t\tThere is no more data, close the socket");
+            // Если данные закончились, закрываем сокет, 
+            // сохраняем результат и вызываем continuation
+            socket.Close();
+            _result = sb.ToString();
             _isCompleted = true;
             if (!_wasInvoked)
             {
-              _wasInvoked = true;
-              _continuation?.Invoke();
+                _wasInvoked = true;
+                _continuation?.Invoke();
             }
           }
         }
-      }
-      else
-      {
-        // HTTP-запрос
-        socket.Send(requestBytes);
-        var buffer = new byte[8192];
-        var sb = new StringBuilder();
-
-        socket.BeginReceive(buffer,
-                            0,
-                            buffer.Length,
-                            SocketFlags.None,
-                            ReceiveCallback,
-                            null);
-
-        void ReceiveCallback(IAsyncResult ar)
+        catch (Exception ex)
         {
-          try
+          _result = $"Read error: {ex.Message}";
+          _isCompleted = true;
+          if (!_wasInvoked)
           {
-            int bytesRead = socket.EndReceive(ar);
-            
-            if (bytesRead > 0)
-            {
-                sb.Append(Encoding.UTF8
-                                  .GetString(buffer,
-                                             0,
-                                             bytesRead));
-                socket.BeginReceive(buffer,
-                                    0,
-                                    buffer.Length,
-                                    SocketFlags.None,
-                                    ReceiveCallback,
-                                    null);
-            }
-            else
-            {
-              socket.Close();
-              _result = sb.ToString();
-              _isCompleted = true;
-              if (!_wasInvoked)
-              {
-                  _wasInvoked = true;
-                  // Возобновляем работу state machine
-                  _continuation?.Invoke();
-              }
-            }
-          }
-          catch (Exception ex)
-          {
-            _result = $"Read error: {ex.Message}";
-            _isCompleted = true;
-            if (!_wasInvoked)
-            {
-              _wasInvoked = true;
-              _continuation?.Invoke();
-            }
+            _wasInvoked = true;
+            _continuation?.Invoke();
           }
         }
       }
     }
-  }
-
-  // Простейший валидатор SSL-сертификата — всегда возвращает true (не проверяет!)
-  private static bool ValidateServerCertificate(object sender,
-                                                X509Certificate certificate,
-                                                X509Chain chain,
-                                                SslPolicyErrors sslPolicyErrors)
-  {
-    return true;
   }
 }

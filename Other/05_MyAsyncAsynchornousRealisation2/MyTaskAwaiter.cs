@@ -2,6 +2,7 @@ using System.Runtime.CompilerServices;
 
 namespace _05_MyAsyncAsynchornousRealisation2;
 
+// Awaiter для MyTask<T>
 public class MyTaskAwaiter<T>(MyTask<T> task) 
   : INotifyCompletion
 {
@@ -15,5 +16,4 @@ public class MyTaskAwaiter<T>(MyTask<T> task)
 
   public void OnCompleted(Action continuation)
     => _task.OnCompleted(continuation);
-
 }

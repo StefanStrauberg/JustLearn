@@ -2,67 +2,78 @@ using System.Runtime.CompilerServices;
 
 namespace _05_MyAsyncAsynchornousRealisation2;
 
-// Реализация state machine для асинхронного метода получения страницы
-// Эта структура реализует IAsyncStateMachine, что позволяет компилятору 
-// генерировать await-метод.
+// Реализация state machine для асинхронной операции получения страницы
+// Эта структура реализует IAsyncStateMachine, 
+// позволяя нам управлять переходами между состояниями.
 public struct CustomHttpStateMachine : IAsyncStateMachine
 {
-  // Поле, отображающее текущее состояние 
-  // (например, -1 до первого await, 0 после первого await)
-  public int State;
-  // Билдер, управляющий созданием и завершением задачи
-  public MyAsyncTaskMethodBuilder Builder;
-  public string Url;
-  // Awaiter, который будет получать данные по HTTP
-  HttpGetAwaitable _awaiter;
+  public int State; // Текущее состояние (-1: до await, 0: после await)
+  public MyAsyncTaskMethodBuilder Builder; // Билдер, управляющий созданием и завершением задачи
+  public string Url; // Переданный URL, который содержит протокол, хост и путь
+  HttpGetAwaitable _awaiter; // Наш awaitable, который выполняет HTTP-запрос
 
-  // Метод MoveNext вызывается для перехода 
-  // от одного состояния state machine к следующему.
+  // MoveNext вызывается для продолжения выполнения state machine
   public void MoveNext()
   {
     try
     {
-      // Если state = -1, значит мы только начинаем 
-      // выполнение асинхронного метода
       if (State == -1)
       {
+        Console.ForegroundColor = ConsoleColor.Magenta;
+        Console.WriteLine($"\t\tCurrent thread: {Environment.CurrentManagedThreadId}");
+        Console.ResetColor();
+        Console.WriteLine("\t\tState -1");
+        Console.WriteLine("\t\tCreate an awaiter, thath will initiate an HTTP request");
+        
         // Создаём awaiter, который инициирует HTTP-запрос
         _awaiter = new HttpGetAwaitable(Url);
         
-         // Если awaiter ещё не завершён 
-         // (асинхронная операция не закончилась)
+        // Если асинхронная операция еще не завершена,
+        // регистрируем continuation (MoveNext) через AwaitOnCompleted
+        Console.WriteLine("\t\tIf the async operation isn't completed");
         if (!_awaiter.IsCompleted)
         {
-          // Переходим в состояние 0 (ждём завершения awaiter-а)
-          State = 0;
-          // Регистрируем continuation через AwaitOnCompleted
-          // это означает, что когда awaiter завершится, 
-          // будет вызвано MoveNext() вновь.
+          Console.ForegroundColor = ConsoleColor.Magenta;
+          Console.WriteLine($"\t\tCurrent thread: {Environment.CurrentManagedThreadId}");
+          Console.ResetColor();
+          Console.WriteLine("\t\tChange state to 0");
+          
+          State = 0; // Переходим в состояние ожидания
+          
+          Console.WriteLine("\t\tRegister continuation (MoveNext) via AwaitOnCompleted");
           MyAsyncTaskMethodBuilder.AwaitOnCompleted(ref _awaiter, ref this);
-          // Выходим, оставляя метод для продолжения позже
-          return;
+          Console.WriteLine("\t\tExit to continue the execution later");
+          
+          return; // Выходим, чтобы продолжить выполнение позже
         }
       }
-      // Если state == 0, значит, выполнение возобновлено 
-      // после окончания awaiter-а
+
       if (State == 0)
       {
-        // Получаем результат асинхронной операции через awaiter
+        Console.ForegroundColor = ConsoleColor.Magenta;
+        Console.WriteLine($"\t\tCurrent thread: {Environment.CurrentManagedThreadId}");
+        Console.ResetColor();
+        Console.WriteLine("\t\tState 0");
+        Console.WriteLine("\t\tWhen awaiter is completed, get result");
+        
+        // Когда awaiter завершился, получаем результат
         var result = _awaiter.GetResult();
-        // Завершаем задачу с результатом, вызывая SetResult
+        
+        Console.WriteLine("\t\tComplete the task, set result");
+        
+        // Завершаем задачу, устанавливая результат
         Builder.SetResult(result);
       }
     }
-    // Если происходит исключение, передаем его в Builder, 
-    // чтобы завершить задачу ошибкой.
     catch (Exception ex)
     {
+      // Если возникает исключение, завершаем задачу с ошибкой
       Builder.SetException(ex);
     }
   }
   
-  // Метод SetStateMachine используется для регистрации state machine 
-  // (обычно не требует реализации в упрощённых вариантах)
+  /// SetStateMachine используется для регистрации состояния state machine.
+  // В нашем упрощенном случае реализация пустая.
   public readonly void SetStateMachine(IAsyncStateMachine stateMachine)
     => MyAsyncTaskMethodBuilder.SetStateMachine(stateMachine);
 }
